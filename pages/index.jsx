@@ -840,12 +840,12 @@ export default function App() {
     })();
   },[]);
 
-  useEffect(()=>{if(loaded)storageSet(KEYS.participants,participants);},[participants,loaded]);
-  useEffect(()=>{if(loaded)storageSet(KEYS.rounds,rounds);},[rounds,loaded]);
-  useEffect(()=>{if(loaded)storageSet(KEYS.picks,picks);},[picks,loaded]);
-  useEffect(()=>{if(loaded)storageSet(KEYS.longBets,longBets);},[longBets,loaded]);
-  useEffect(()=>{if(loaded)storageSet(KEYS.results,results);},[results,loaded]);
-  useEffect(()=>{if(loaded)storageSet(KEYS.longResults,longResults);},[longResults,loaded]);
+  useEffect(()=>{if(loaded)storageSet(KEYS.participants,participants);},[participants]);
+  useEffect(()=>{if(loaded)storageSet(KEYS.rounds,rounds);},[rounds]);
+  useEffect(()=>{if(loaded)storageSet(KEYS.picks,picks);},[picks]);
+  useEffect(()=>{if(loaded)storageSet(KEYS.longBets,longBets);},[longBets]);
+  useEffect(()=>{if(loaded)storageSet(KEYS.results,results);},[results]);
+  useEffect(()=>{if(loaded)storageSet(KEYS.longResults,longResults);},[longResults]);
   useEffect(()=>{if(loaded)storageSet(KEYS.pins,pins);},[pins,loaded]);
 
   const handleSetPin = (pid, pin) => setPins(p=>({...p,[pid]:pin}));
