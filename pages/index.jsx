@@ -331,15 +331,19 @@ function ScoreInput({value,onChange,disabled}) {
   return <input type="number" min="0" max="99" value={value} disabled={disabled} onChange={e=>onChange(e.target.value)} style={{width:"62px",height:"62px",borderRadius:"10px",border:"2px solid #30363d",background:"#0d1117",color:"#e6edf3",fontSize:"28px",fontWeight:"700",textAlign:"center",outline:"none",fontFamily:"'Bebas Neue',cursive",MozAppearance:"textfield",opacity:disabled?0.4:1}}/>;
 }
 
+const DAYS_PT=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+function dayOfWeek(dateStr){const[d,m]=dateStr.split("/").map(Number);return DAYS_PT[new Date(2026,m-1,d).getDay()];}
+
 function GameCard({game,pick,onPickChange,result,phase,disabled}) {
   const mult=PHASE_MULT[phase]||1;
   const s=(result?.home!==undefined&&result?.home!==""&&pick)?scoreMatch(pick,result):null;
   const venue=VENUES[game.stadium];
   const venueStr=venue?`${venue.stadium} · ${venue.city}, ${venue.country}`:game.stadium;
+  const dow=dayOfWeek(game.date);
   return (
     <div style={{background:"#161b22",borderRadius:"14px",padding:"14px 12px",border:s?`2px solid ${s.color}40`:"2px solid #21262d",marginBottom:"10px",position:"relative"}}>
       {mult>1&&<div style={{position:"absolute",top:"10px",right:"10px",background:mult===3?"#ffe066":"#ff9800",color:"#0d1117",borderRadius:"6px",padding:"3px 10px",fontSize:"14px",fontWeight:"700"}}>×{mult}</div>}
-      <p style={{color:"#8b949e",fontSize:"15px",margin:"0 0 14px"}}>{game.date} · {game.time} · {venueStr}</p>
+      <p style={{color:"#8b949e",fontSize:"15px",margin:"0 0 14px"}}>{dow}, {game.date} · {game.time} · {venueStr}</p>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:"6px"}}>
         <div style={{flex:1,textAlign:"center"}}>
           <div style={{fontSize:"36px",marginBottom:"6px"}}>{fl(game.home)}</div>
