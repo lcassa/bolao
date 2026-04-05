@@ -828,7 +828,7 @@ export default function App() {
     (async()=>{
       const [p,r,pk,lb,res,lr,init,pn]=await Promise.all([storageGet(KEYS.participants),storageGet(KEYS.rounds),storageGet(KEYS.picks),storageGet(KEYS.longBets),storageGet(KEYS.results),storageGet(KEYS.longResults),storageGet(KEYS.initialized),storageGet(KEYS.pins)]);
       if(p) setParticipants(p);
-      if(r) setRounds(r); else if(!init){setRounds(ROUNDS_DEFAULT);await storageSet(KEYS.initialized,true);}
+      if(r && r.length>0) setRounds(r); else {setRounds(ROUNDS_DEFAULT);await storageSet(KEYS.rounds,ROUNDS_DEFAULT);}
       if(pk) setPicks(pk);
       if(lb) setLongBets(lb);
       if(res) setResults(res);
