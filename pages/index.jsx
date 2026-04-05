@@ -210,6 +210,36 @@ function calcTotal(pid, rounds, picks, results, lb, lr) {
   }
   return {total,exact,winner};
 }
+function calcBreakdown(pid, rounds, picks, results, lb, lr) {
+  const byRound = rounds.map(r => {
+    const mult = PHASE_MULT[r.phase]||1;
+    const games = r.games.map(g => {
+      const pick = picks?.[pid]?.[r.id]?.[g.id];
+      const s = scoreMatch(pick, results?.[r.id]?.[g.id]);
+      return { game: g, pick, score: s, pts: s ? s.pts * mult : null };
+    });
+    const hasAnyResult = games.some(g => g.score !== null);
+    const roundPts = games.reduce((acc, g) => acc + (g.pts||0), 0);
+    return { round: r, mult, games, roundPts, hasAnyResult };
+  });
+  const b = lb?.[pid];
+  const longBetsDetail = [];
+  const LONG_BETS = [
+    {key:"champion", label:"Campeão da Copa", pts:30, icon:"🥇"},
+    {key:"runner",   label:"Vice-Campeão",    pts:15, icon:"🥈"},
+    {key:"topScorer",label:"Artilheiro",       pts:20, icon:"⚽"},
+    {key:"brazilPosition",label:"Posição do Brasil",pts:10,icon:"🇧🇷"},
+  ];
+  LONG_BETS.forEach(bet => {
+    if (!b?.[bet.key]) return;
+    const resultVal = lr?.[bet.key];
+    const hit = resultVal && (bet.key==="topScorer"
+      ? b[bet.key].toLowerCase()===resultVal.toLowerCase()
+      : b[bet.key]===resultVal);
+    longBetsDetail.push({...bet, pick: b[bet.key], result: resultVal||null, hit: !!hit});
+  });
+  return {byRound, longBetsDetail};
+}
 
 // ============================================================
 // TEAM SELECT — Campo de busca com lista filtrada
@@ -337,6 +367,101 @@ function ScoringModal({onClose}) {
   );
 }
 
+function ScoreBreakdownModal({participant, breakdown, ranking, onClose}) {
+  const [expandedRound, setExpandedRound] = useState(null);
+  const pos = ranking.findIndex(p => p.id === participant.id) + 1;
+  const rankEntry = ranking.find(p => p.id === participant.id);
+  const total = rankEntry?.total ?? 0;
+  const roundsWithResults = breakdown.byRound.filter(r => r.hasAnyResult);
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}} onClick={onClose}>
+      <div style={{background:BG_BASE,border:`1px solid ${BORDER_CARD}`,borderRadius:"20px",padding:"24px 20px",maxWidth:"480px",width:"100%",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        {/* Header */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"20px"}}>
+          <div>
+            <p style={{color:TEXT_SECONDARY,fontSize:"13px",fontWeight:"600",letterSpacing:"2px",margin:"0 0 4px",textTransform:"uppercase"}}>Discriminação de Pontos</p>
+            <h2 style={{color:TEXT_PRIMARY,fontFamily:"'Bebas Neue',cursive",fontSize:"26px",letterSpacing:"1px",margin:"0 0 6px"}}>{participant.name}</h2>
+            <div style={{display:"flex",alignItems:"baseline",gap:"10px"}}>
+              <span style={{color:TEXT_GOLD,fontFamily:"'Bebas Neue',cursive",fontSize:"36px"}}>{total}</span>
+              <span style={{color:TEXT_SECONDARY,fontSize:"16px"}}>pontos</span>
+              <span style={{color:BONUS_PTS,fontWeight:"700",fontSize:"16px",background:BG_SURFACE,borderRadius:"8px",padding:"2px 10px"}}>{pos}º de {ranking.length}</span>
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:TEXT_SECONDARY,fontSize:"26px",cursor:"pointer",lineHeight:1}}>✕</button>
+        </div>
+
+        {/* Per-round breakdown */}
+        {roundsWithResults.length === 0 && (
+          <div style={{textAlign:"center",padding:"32px 0",color:TEXT_MUTED,fontSize:"15px"}}>Nenhum resultado disponível ainda.</div>
+        )}
+        {roundsWithResults.map(({round, mult, games, roundPts}) => {
+          const isOpen = expandedRound === round.id;
+          const gamesWithResult = games.filter(g => g.score !== null);
+          return (
+            <div key={round.id} style={{marginBottom:"10px",border:`1px solid ${BORDER_CARD}`,borderRadius:"12px",overflow:"hidden"}}>
+              <div onClick={()=>setExpandedRound(isOpen ? null : round.id)}
+                style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",cursor:"pointer",background:BG_CARD,userSelect:"none"}}>
+                <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+                  <span style={{color:TEXT_PRIMARY,fontWeight:"700",fontSize:"16px"}}>{round.name}</span>
+                  {mult > 1 && <span style={{background:mult>=3?MULT_HIGH:MULT_MED,color:"#000",borderRadius:"5px",padding:"2px 7px",fontSize:"13px",fontWeight:"700"}}>×{mult}</span>}
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+                  <span style={{color:TEXT_GOLD,fontFamily:"'Bebas Neue',cursive",fontSize:"22px"}}>{roundPts} pts</span>
+                  <span style={{color:TEXT_MUTED,fontSize:"18px"}}>{isOpen?"▴":"▾"}</span>
+                </div>
+              </div>
+              {isOpen && (
+                <div style={{background:BG_BASE,padding:"10px 14px",display:"flex",flexDirection:"column",gap:"8px"}}>
+                  {gamesWithResult.length === 0
+                    ? <p style={{color:TEXT_MUTED,fontSize:"14px",textAlign:"center",padding:"8px 0"}}>Sem resultados nesta rodada.</p>
+                    : gamesWithResult.map(({game, pick, score, pts}) => (
+                      <div key={game.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",background:BG_CARD,borderRadius:"10px",borderLeft:`4px solid ${score.color}`}}>
+                        <div style={{flex:1}}>
+                          <div style={{color:TEXT_PRIMARY,fontWeight:"600",fontSize:"15px",marginBottom:"4px"}}>
+                            {fl(game.home)} {game.home} × {game.away} {fl(game.away)}
+                          </div>
+                          <div style={{fontSize:"13px",color:TEXT_SECONDARY,marginTop:"2px"}}>
+                            Palpite: <strong style={{color:TEXT_PRIMARY}}>{pick ? `${pick.home}×${pick.away}` : "—"}</strong>
+                            <span style={{color:score.color,marginLeft:"8px"}}>{score.label}</span>
+                          </div>
+                        </div>
+                        <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:"24px",color:pts>0?score.color:TEXT_MUTED,minWidth:"52px",textAlign:"right"}}>{pts > 0 ? `+${pts}` : "0"}</div>
+                      </div>
+                    ))
+                  }
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Long bets */}
+        {breakdown.longBetsDetail.length > 0 && (
+          <div style={{marginTop:"12px",background:BG_CARD,borderRadius:"12px",padding:"16px"}}>
+            <p style={{color:TEXT_GOLD,fontWeight:"700",marginBottom:"12px",fontSize:"16px"}}>🏆 Apostas de Longo Prazo</p>
+            {breakdown.longBetsDetail.map(bet => (
+              <div key={bet.key} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:`1px solid ${BORDER_CARD}`}}>
+                <div style={{flex:1}}>
+                  <div style={{color:TEXT_PRIMARY,fontSize:"15px",fontWeight:"600"}}>{bet.icon} {bet.label}</div>
+                  <div style={{color:TEXT_SECONDARY,fontSize:"13px",marginTop:"2px"}}>
+                    Seu palpite: <strong style={{color:TEXT_PRIMARY}}>{bet.pick}</strong>
+                    {bet.result && <span> · Resultado: <strong style={{color:bet.hit?SCORE_EXACT:ERROR}}>{bet.result}</strong></span>}
+                    {!bet.result && <span style={{color:TEXT_MUTED}}> · Aguardando</span>}
+                  </div>
+                </div>
+                <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:"22px",color:bet.hit?SCORE_EXACT:bet.result?ERROR:TEXT_MUTED,minWidth:"52px",textAlign:"right"}}>
+                  {bet.hit ? `+${bet.pts}` : bet.result ? "0" : "?"}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ScoreInput({value,onChange,disabled}) {
   return <input type="number" min="0" max="99" value={value} disabled={disabled} onChange={e=>onChange(e.target.value)} style={{width:"62px",height:"62px",borderRadius:"10px",border:`2px solid ${BORDER_INPUT}`,background:BG_BASE,color:TEXT_PRIMARY,fontSize:"28px",fontWeight:"700",textAlign:"center",outline:"none",fontFamily:"'Bebas Neue',cursive",MozAppearance:"textfield",opacity:disabled?0.4:1}}/>;
 }
@@ -458,20 +583,29 @@ function LongBetsUser({ participant, longBets, onLongBetsChange, longResults }) 
 function UserView({participant,rounds,picks,onPicksChange,results,longBets,onLongBetsChange,longResults,participants,onBack}) {
   const [tab,setTab]=useState("picks");
   const [showScoring,setShowScoring]=useState(false);
+  const [showBreakdown,setShowBreakdown]=useState(null);
   const [saved,setSaved]=useState(false);
   const activeRounds=rounds.filter(r=>r.active);
   const stats=calcTotal(participant.id,rounds,picks,results,longBets,longResults);
   const ranking=participants.map(p=>({...p,...calcTotal(p.id,rounds,picks,results,longBets,longResults)})).sort((a,b)=>b.total-a.total||b.exact-a.exact||b.winner-a.winner);
+  const myPos=ranking.findIndex(p=>p.id===participant.id)+1;
 
   return (
     <div style={{minHeight:"100vh",background:BG_BASE,fontFamily:"'Outfit',sans-serif"}}>
       {showScoring&&<ScoringModal onClose={()=>setShowScoring(false)}/>}
+      {showBreakdown&&<ScoreBreakdownModal participant={showBreakdown} breakdown={calcBreakdown(showBreakdown.id,rounds,picks,results,longBets,longResults)} ranking={ranking} onClose={()=>setShowBreakdown(null)}/>}
       <div style={{background:HEADER_GRADIENT,padding:"22px 18px 18px",borderBottom:`1px solid ${BORDER_CARD}`}}>
         <div style={{maxWidth:"480px",margin:"0 auto",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div>
             <p style={{color:BONUS_PTS,fontSize:"13px",fontWeight:"600",letterSpacing:"3px",margin:"0 0 4px",textTransform:"uppercase"}}>Bolão da Copa 2026</p>
             <h1 style={{color:TEXT_PRIMARY,fontFamily:"'Bebas Neue',cursive",fontSize:"32px",letterSpacing:"2px",margin:"0 0 4px"}}>Olá, {participant.name}! 👋</h1>
-            <p style={{color:TEXT_SECONDARY,fontSize:"16px",margin:0}}><span style={{color:TEXT_GOLD,fontWeight:"700",fontSize:"28px",fontFamily:"'Bebas Neue',cursive"}}>{stats.total}</span> pontos · 🎯{stats.exact} exatos</p>
+            <div onClick={()=>setShowBreakdown(participant)} style={{cursor:"pointer",display:"inline-block"}}>
+              <p style={{color:TEXT_SECONDARY,fontSize:"16px",margin:"0 0 2px"}}>
+                <span style={{color:TEXT_GOLD,fontWeight:"700",fontSize:"28px",fontFamily:"'Bebas Neue',cursive"}}>{stats.total}</span>
+                {" "}pontos · <span style={{color:BONUS_PTS,fontWeight:"700"}}>{myPos}º de {ranking.length}</span>
+              </p>
+              <p style={{color:TEXT_MUTED,fontSize:"12px",margin:0}}>Toque para ver detalhes ▾</p>
+            </div>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"8px",alignItems:"flex-end"}}>
             <button onClick={()=>setShowScoring(true)} style={{background:BG_SURFACE,border:`1px solid ${BORDER_INPUT}`,color:TEXT_SECONDARY,borderRadius:"8px",padding:"9px 14px",cursor:"pointer",fontSize:"15px",fontFamily:"'Outfit',sans-serif"}}>ℹ️ Pontuação</button>
@@ -527,18 +661,28 @@ function UserView({participant,rounds,picks,onPicksChange,results,longBets,onLon
         </div>}
 
         {tab==="ranking"&&<div style={{marginTop:"14px",paddingBottom:"40px"}}>
-          {ranking.map((p,i)=>(
-            <div key={p.id} style={{display:"flex",alignItems:"center",gap:"14px",background:p.id===participant.id?HEADER_USER_BG:BG_CARD,border:p.id===participant.id?`2px solid ${PRIMARY}`:`2px solid ${BORDER_CARD}`,borderRadius:"14px",padding:"16px 16px",marginBottom:"10px"}}>
-              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:"26px",minWidth:"36px",textAlign:"center",color:i===0?MEDAL_GOLD:i===1?MEDAL_SILVER:i===2?MEDAL_BRONZE:TEXT_SECONDARY}}>
-                {i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}º`}
+          {ranking.map((p,i)=>{
+            const diff=p.total-stats.total;
+            const isMe=p.id===participant.id;
+            return (
+              <div key={p.id} onClick={()=>setShowBreakdown(p)}
+                style={{display:"flex",alignItems:"center",gap:"14px",background:isMe?HEADER_USER_BG:BG_CARD,border:isMe?`2px solid ${PRIMARY}`:`2px solid ${BORDER_CARD}`,borderRadius:"14px",padding:"14px 16px",marginBottom:"10px",cursor:"pointer"}}>
+                <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:"26px",minWidth:"36px",textAlign:"center",color:i===0?MEDAL_GOLD:i===1?MEDAL_SILVER:i===2?MEDAL_BRONZE:TEXT_SECONDARY}}>
+                  {i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}º`}
+                </div>
+                <div style={{flex:1}}>
+                  <p style={{color:TEXT_PRIMARY,fontWeight:"700",margin:"0 0 4px",fontSize:"18px"}}>{p.name}{isMe?" (você)":""}</p>
+                  <p style={{color:TEXT_MUTED,fontSize:"13px",margin:0}}>Ver detalhes ›</p>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:"4px"}}>
+                  <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:"32px",color:TEXT_GOLD,lineHeight:1}}>{p.total}</div>
+                  {!isMe&&<div style={{fontSize:"13px",fontWeight:"700",color:diff>0?ERROR:SCORE_EXACT}}>
+                    {diff>0?`+${diff}`:diff} pts
+                  </div>}
+                </div>
               </div>
-              <div style={{flex:1}}>
-                <p style={{color:TEXT_PRIMARY,fontWeight:"700",margin:"0 0 4px",fontSize:"18px"}}>{p.name}{p.id===participant.id?" (você)":""}</p>
-                <p style={{color:TEXT_SECONDARY,fontSize:"15px",margin:0}}>🎯{p.exact} exatos · 👍{p.winner} vencedores</p>
-              </div>
-              <div style={{fontFamily:"'Bebas Neue',cursive",fontSize:"32px",color:TEXT_GOLD}}>{p.total}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>}
       </div>
 
