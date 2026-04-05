@@ -44,6 +44,49 @@ export function AdminView({
   const [newParticipant, setNewParticipant] = useState("");
   const [expanded, setExpanded] = useState(null);
   const [newGame, setNewGame] = useState({ home: "", away: "", date: "", time: "", stadium: "" });
+  const [toolsPass, setToolsPass] = useState("");
+  const [seedStatus, setSeedStatus] = useState(null); // null | "loading" | "ok" | "error"
+  const [resetStatus, setResetStatus] = useState(null);
+
+  const handleSeed = async () => {
+    setSeedStatus("loading");
+    try {
+      const res = await fetch("/api/seed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: toolsPass }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json();
+        setSeedStatus("error:" + error);
+      } else {
+        setSeedStatus("ok");
+        setTimeout(() => window.location.reload(), 800);
+      }
+    } catch {
+      setSeedStatus("error:falha na requisição");
+    }
+  };
+
+  const handleReset = async () => {
+    setResetStatus("loading");
+    try {
+      const res = await fetch("/api/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: toolsPass }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json();
+        setResetStatus("error:" + error);
+      } else {
+        setResetStatus("ok");
+        setTimeout(() => window.location.reload(), 800);
+      }
+    } catch {
+      setResetStatus("error:falha na requisição");
+    }
+  };
 
   return (
     <div style={{ minHeight:"100vh", background:BG_BASE, fontFamily:"'Outfit',sans-serif" }}>
@@ -184,6 +227,52 @@ export function AdminView({
                 )}
               </div>
             ))}
+
+            {/* ── Ferramentas de Teste ── */}
+            <div style={{ background:BG_CARD, borderRadius:"12px", padding:"16px", marginTop:"20px", border:`1px solid ${DANGER}33` }}>
+              <p style={{ color:DANGER, fontWeight:"700", margin:"0 0 4px", fontSize:"14px" }}>Ferramentas de Teste</p>
+              <p style={{ color:TEXT_SECONDARY, fontSize:"11px", margin:"0 0 12px" }}>Ações destrutivas — confirme com a senha admin.</p>
+
+              <input
+                type="password"
+                placeholder="Senha admin"
+                value={toolsPass}
+                onChange={e => { setToolsPass(e.target.value); setSeedStatus(null); setResetStatus(null); }}
+                style={inp}
+              />
+
+              {/* Seed */}
+              <button
+                onClick={handleSeed}
+                disabled={seedStatus === "loading" || resetStatus === "loading"}
+                style={{ ...btn(PRIMARY), width:"100%", marginBottom:"6px", opacity: seedStatus === "loading" ? 0.6 : 1 }}
+              >
+                {seedStatus === "loading" ? "Carregando..." : "Carregar Dados de Teste"}
+              </button>
+              {seedStatus === "ok" && <p style={{ color:PRIMARY, fontSize:"11px", margin:"0 0 8px" }}>Dados carregados! Recarregando...</p>}
+              {typeof seedStatus === "string" && seedStatus.startsWith("error:") && (
+                <p style={{ color:ERROR, fontSize:"11px", margin:"0 0 8px" }}>{seedStatus.replace("error:", "")}</p>
+              )}
+              <p style={{ color:TEXT_SECONDARY, fontSize:"11px", margin:"0 0 10px" }}>
+                Cria Alice, Bob e Carlos (PINs 1234/5678/9012) com palpites e resultados da Rodada 1.
+              </p>
+
+              {/* Reset */}
+              <button
+                onClick={handleReset}
+                disabled={seedStatus === "loading" || resetStatus === "loading"}
+                style={{ ...btn(DANGER), width:"100%", marginBottom:"6px", opacity: resetStatus === "loading" ? 0.6 : 1 }}
+              >
+                {resetStatus === "loading" ? "Limpando..." : "Limpar Banco Completo"}
+              </button>
+              {resetStatus === "ok" && <p style={{ color:PRIMARY, fontSize:"11px", margin:"0 0 8px" }}>Banco limpo! Recarregando...</p>}
+              {typeof resetStatus === "string" && resetStatus.startsWith("error:") && (
+                <p style={{ color:ERROR, fontSize:"11px", margin:"0 0 8px" }}>{resetStatus.replace("error:", "")}</p>
+              )}
+              <p style={{ color:TEXT_SECONDARY, fontSize:"11px", margin:0 }}>
+                Apaga todos os dados. As rodadas padrão são recriadas automaticamente no reload.
+              </p>
+            </div>
           </div>
         )}
 
