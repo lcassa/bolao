@@ -477,7 +477,7 @@ function UserView({participant,rounds,picks,onPicksChange,results,longBets,onLon
             ? <div style={{textAlign:"center",padding:"60px 20px",color:"#8b949e"}}><div style={{fontSize:"44px",marginBottom:"12px"}}>⏳</div><p>Nenhuma rodada aberta.<br/>Aguarda o admin liberar!</p></div>
             : activeRounds.map(round=>{
               const parseDate=d=>{const[day,mon]=d.split("/").map(Number);return mon*100+day;};
-              const renderCard=game=><GameCard key={game.id} game={game} phase={round.phase} pick={picks?.[participant.id]?.[round.id]?.[game.id]} result={results?.[round.id]?.[game.id]} disabled={round.locked} onPickChange={val=>onPicksChange(p=>({...p,[participant.id]:{...(p[participant.id]||{}),[round.id]:{...(p[participant.id]?.[round.id]||{}),[game.id]:val}}}})}/>;
+              const renderCard=game=>(<GameCard key={game.id} game={game} phase={round.phase} pick={picks?.[participant.id]?.[round.id]?.[game.id]} result={results?.[round.id]?.[game.id]} disabled={round.locked} onPickChange={val=>onPicksChange(p=>({...p,[participant.id]:{...(p[participant.id]||{}),[round.id]:{...(p[participant.id]?.[round.id]||{}),[game.id]:val}}}))}/>);
               const roundHeader=<div style={{display:"flex",alignItems:"center",gap:"8px",margin:"22px 0 12px"}}>
                 <h2 style={{color:"#ffe066",fontFamily:"'Bebas Neue',cursive",fontSize:"22px",letterSpacing:"1px",margin:0}}>{round.name}</h2>
                 <span style={{background:"#21262d",color:"#8b949e",borderRadius:"5px",padding:"3px 8px",fontSize:"14px"}}>×{PHASE_MULT[round.phase]}</span>
