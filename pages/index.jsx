@@ -640,6 +640,8 @@ function PinPad({ title, subtitle, onSubmit, error, onBack }) {
   const [digits, setDigits] = useState(["","","",""]);
   const refs = [useRef(),useRef(),useRef(),useRef()];
 
+  useEffect(()=>{ refs[0].current?.focus(); },[]);
+
   const handleDigit = (i, val) => {
     const d = val.replace(/\D/g,"").slice(-1);
     const next = [...digits]; next[i] = d;
