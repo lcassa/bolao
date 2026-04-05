@@ -7,8 +7,13 @@ export default async function handler(req, res) {
 
   if (req.method === "GET") {
     try {
-      const value = await kv.get(key);
-      return res.status(200).json({ value: value ?? null });
+      const raw = await kv.get(key);
+      if (raw === null || raw === undefined) {
+        return res.status(200).json({ value: null });
+      }
+      // kv.get may return already-parsed object or a raw JSON string
+      const value = typeof raw === "string" ? JSON.parse(raw) : raw;
+      return res.status(200).json({ value });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
@@ -17,7 +22,7 @@ export default async function handler(req, res) {
   if (req.method === "POST") {
     try {
       const { value } = req.body;
-      await kv.set(key, value);
+      await kv.set(key, JSON.stringify(value));
       return res.status(200).json({ ok: true });
     } catch (e) {
       return res.status(500).json({ error: e.message });

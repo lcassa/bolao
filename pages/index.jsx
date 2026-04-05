@@ -14,7 +14,7 @@ async function storageGet(key) {
   try {
     const res = await fetch(`/api/storage?key=${encodeURIComponent(key)}`);
     const { value } = await res.json();
-    return value ? JSON.parse(value) : null;
+    return value ?? null;
   } catch { return null; }
 }
 
@@ -23,7 +23,7 @@ async function storageSet(key, value) {
     await fetch(`/api/storage?key=${encodeURIComponent(key)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ value: JSON.stringify(value) }),
+      body: JSON.stringify({ value }),
     });
   } catch {}
 }
@@ -846,7 +846,7 @@ export default function App() {
   useEffect(()=>{if(loaded)storageSet(KEYS.longBets,longBets);},[longBets]);
   useEffect(()=>{if(loaded)storageSet(KEYS.results,results);},[results]);
   useEffect(()=>{if(loaded)storageSet(KEYS.longResults,longResults);},[longResults]);
-  useEffect(()=>{if(loaded)storageSet(KEYS.pins,pins);},[pins,loaded]);
+  useEffect(()=>{if(loaded)storageSet(KEYS.pins,pins);},[pins]);
 
   const handleSetPin = (pid, pin) => setPins(p=>({...p,[pid]:pin}));
   const handleResetPin = (pid) => setPins(p=>{const n={...p}; delete n[pid]; return n;});
