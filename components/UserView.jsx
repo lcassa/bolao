@@ -8,9 +8,10 @@ import {
   MEDAL_GOLD, MEDAL_SILVER, MEDAL_BRONZE,
 } from "../styles/colors";
 import { ScoringModal } from "./ScoringModal";
+import { ScoreBreakdownModal } from "./ScoreBreakdownModal";
 import { GameCard } from "./GameCard";
 import { LongBetsUser } from "./LongBetsUser";
-import { calcTotal, PHASE_MULT } from "../lib/scoring";
+import { calcTotal, calcBreakdown, PHASE_MULT } from "../lib/scoring";
 import { TEAM_TO_GROUP } from "../data/teams";
 
 // ============================================================
@@ -25,6 +26,8 @@ export function UserView({
 }) {
   const [tab, setTab] = useState("picks");
   const [showScoring, setShowScoring] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [breakdownPid, setBreakdownPid] = useState(null);
   const [saved, setSaved] = useState(false);
 
   const activeRounds = rounds.filter(r => r.active);
@@ -33,9 +36,26 @@ export function UserView({
     .map(p => ({ ...p, ...calcTotal(p.id, rounds, picks, results, longBets, longResults) }))
     .sort((a, b) => b.total - a.total || b.exact - a.exact || b.winner - a.winner);
 
+  const myRank   = ranking.findIndex(p => p.id === participant.id) + 1;
+  const gapToNext = myRank > 1 ? ranking[myRank - 2].total - stats.total : null;
+
   return (
     <div style={{ minHeight:"100vh", background:BG_BASE, fontFamily:"'Outfit',sans-serif" }}>
       {showScoring && <ScoringModal onClose={() => setShowScoring(false)} />}
+      {showBreakdown && (
+        <ScoreBreakdownModal
+          participantName={participant.name}
+          breakdown={calcBreakdown(participant.id, rounds, picks, results, longBets, longResults)}
+          onClose={() => setShowBreakdown(false)}
+        />
+      )}
+      {breakdownPid && (
+        <ScoreBreakdownModal
+          participantName={ranking.find(p => p.id === breakdownPid)?.name ?? ""}
+          breakdown={calcBreakdown(breakdownPid, rounds, picks, results, longBets, longResults)}
+          onClose={() => setBreakdownPid(null)}
+        />
+      )}
 
       {/* Header */}
       <div style={{ background:HEADER_GRADIENT, padding:"22px 18px 18px", borderBottom:`1px solid ${BORDER_CARD}` }}>
@@ -43,10 +63,17 @@ export function UserView({
           <div>
             <p style={{ color:BONUS_PTS, fontSize:"13px", fontWeight:"600", letterSpacing:"3px", margin:"0 0 4px", textTransform:"uppercase" }}>Bolão da Copa 2026</p>
             <h1 style={{ color:TEXT_PRIMARY, fontFamily:"'Bebas Neue',cursive", fontSize:"32px", letterSpacing:"2px", margin:"0 0 4px" }}>Olá, {participant.name}! 👋</h1>
-            <p style={{ color:TEXT_SECONDARY, fontSize:"16px", margin:0 }}>
-              <span style={{ color:TEXT_GOLD, fontWeight:"700", fontSize:"28px", fontFamily:"'Bebas Neue',cursive" }}>{stats.total}</span>
-              {" "}pontos · 🎯{stats.exact} exatos
-            </p>
+            <div
+              onClick={() => setShowBreakdown(true)}
+              style={{ display:"inline-flex", alignItems:"baseline", gap:"6px", cursor:"pointer", background:BG_SURFACE, borderRadius:"10px", padding:"5px 11px", border:`1px solid ${BORDER_CARD}`, marginTop:"2px" }}
+            >
+              <span style={{ color:TEXT_GOLD, fontWeight:"700", fontSize:"28px", fontFamily:"'Bebas Neue',cursive", lineHeight:1 }}>{stats.total}</span>
+              <span style={{ color:TEXT_SECONDARY, fontSize:"14px" }}>pts · {myRank}º lugar</span>
+              {gapToNext !== null && (
+                <span style={{ color:TEXT_SECONDARY, fontSize:"12px" }}>· a {gapToNext}pts do {myRank-1}º</span>
+              )}
+              <span style={{ color:TEXT_SECONDARY, fontSize:"12px" }}>↗</span>
+            </div>
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:"8px", alignItems:"flex-end" }}>
             <button onClick={() => setShowScoring(true)} style={{ background:BG_SURFACE, border:`1px solid ${BORDER_CARD}`, color:TEXT_SECONDARY, borderRadius:"8px", padding:"9px 14px", cursor:"pointer", fontSize:"15px", fontFamily:"'Outfit',sans-serif" }}>ℹ️ Pontuação</button>
@@ -147,11 +174,12 @@ export function UserView({
         {tab === "ranking" && (
           <div style={{ marginTop:"14px", paddingBottom:"40px" }}>
             {ranking.map((p, i) => (
-              <div key={p.id} style={{
+              <div key={p.id} onClick={() => setBreakdownPid(p.id)} style={{
                 display:"flex", alignItems:"center", gap:"14px",
                 background: p.id === participant.id ? HEADER_USER_BG : BG_CARD,
                 border: p.id === participant.id ? `2px solid ${PRIMARY}` : `2px solid ${BORDER_CARD}`,
                 borderRadius:"14px", padding:"16px", marginBottom:"10px",
+                cursor:"pointer",
               }}>
                 <div style={{ fontFamily:"'Bebas Neue',cursive", fontSize:"26px", minWidth:"36px", textAlign:"center", color: i===0?MEDAL_GOLD : i===1?MEDAL_SILVER : i===2?MEDAL_BRONZE : TEXT_SECONDARY }}>
                   {i===0 ? "🥇" : i===1 ? "🥈" : i===2 ? "🥉" : `${i+1}º`}
@@ -159,8 +187,12 @@ export function UserView({
                 <div style={{ flex:1 }}>
                   <p style={{ color:TEXT_PRIMARY, fontWeight:"700", margin:"0 0 4px", fontSize:"18px" }}>{p.name}{p.id === participant.id ? " (você)" : ""}</p>
                   <p style={{ color:TEXT_SECONDARY, fontSize:"15px", margin:0 }}>🎯{p.exact} exatos · 👍{p.winner} vencedores</p>
+                  {i > 0 && <p style={{ color:ERROR, fontSize:"13px", margin:"3px 0 0" }}>-{ranking[0].total - p.total}pts do líder</p>}
                 </div>
-                <div style={{ fontFamily:"'Bebas Neue',cursive", fontSize:"32px", color:TEXT_GOLD }}>{p.total}</div>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:"4px" }}>
+                  <div style={{ fontFamily:"'Bebas Neue',cursive", fontSize:"32px", color:TEXT_GOLD }}>{p.total}</div>
+                  <div style={{ color:TEXT_SECONDARY, fontSize:"18px" }}>›</div>
+                </div>
               </div>
             ))}
           </div>
