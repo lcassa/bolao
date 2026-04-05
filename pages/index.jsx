@@ -693,7 +693,14 @@ function SelectScreen({participants,pins,onSelect,onAdmin,onSetPin}) {
   const [pinError,setPinError]=useState("");
   const [step,setStep]=useState("list"); // list | enter_pin | create_pin | confirm_pin
   const [newPin,setNewPin]=useState("");
-  const ADMIN_PASSWORD="copa2026";
+  const checkAdminPassword = async (pass) => {
+    const res = await fetch("/api/admin-auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pass }),
+    });
+    return res.ok;
+  };
 
   const handleSelectParticipant = (p) => {
     setSelectedParticipant(p);
@@ -790,10 +797,10 @@ function SelectScreen({participants,pins,onSelect,onAdmin,onSetPin}) {
         {step==="list" && adminMode && (
           <div style={{background:"#161b22",borderRadius:"14px",padding:"22px"}}>
             <p style={{color:"#ef5350",fontWeight:"700",margin:"0 0 14px",textAlign:"center",fontSize:"18px"}}>🔐 Painel Administrador</p>
-            <input type="password" placeholder="Senha de admin" value={adminPass} onChange={e=>setAdminPass(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&adminPass===ADMIN_PASSWORD)onAdmin();}} style={{width:"100%",padding:"13px 14px",background:"#0d1117",border:"2px solid #30363d",borderRadius:"10px",color:"#e6edf3",fontSize:"17px",fontFamily:"'Outfit',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:"12px"}}/>
+            <input type="password" placeholder="Senha de admin" value={adminPass} onChange={e=>setAdminPass(e.target.value)} onKeyDown={async e=>{if(e.key==="Enter"&&await checkAdminPassword(adminPass))onAdmin();}} style={{width:"100%",padding:"13px 14px",background:"#0d1117",border:"2px solid #30363d",borderRadius:"10px",color:"#e6edf3",fontSize:"17px",fontFamily:"'Outfit',sans-serif",outline:"none",boxSizing:"border-box",marginBottom:"12px"}}/>
             <div style={{display:"flex",gap:"8px"}}>
               <button onClick={()=>setAdminMode(false)} style={{flex:1,padding:"13px",background:"#21262d",border:"none",borderRadius:"10px",color:"#8b949e",cursor:"pointer",fontFamily:"'Outfit',sans-serif",fontWeight:"700",fontSize:"16px"}}>Voltar</button>
-              <button onClick={()=>{if(adminPass===ADMIN_PASSWORD)onAdmin();else alert("Senha incorreta!");}} style={{flex:2,padding:"13px",background:"#b91c1c",border:"none",borderRadius:"10px",color:"#fff",cursor:"pointer",fontFamily:"'Outfit',sans-serif",fontWeight:"700",fontSize:"16px"}}>Entrar</button>
+              <button onClick={async ()=>{if(await checkAdminPassword(adminPass))onAdmin();else alert("Senha incorreta!");}} style={{flex:2,padding:"13px",background:"#b91c1c",border:"none",borderRadius:"10px",color:"#fff",cursor:"pointer",fontFamily:"'Outfit',sans-serif",fontWeight:"700",fontSize:"16px"}}>Entrar</button>
             </div>
           </div>
         )}
