@@ -49,6 +49,32 @@ const TEAMS_BY_GROUP = {
 
 const ALL_TEAMS = Object.values(TEAMS_BY_GROUP).flat();
 
+const TEAM_TO_GROUP = {};
+Object.entries(TEAMS_BY_GROUP).forEach(([group, teams]) => {
+  teams.forEach(team => { TEAM_TO_GROUP[team] = group; });
+});
+
+const VENUES = {
+  "Azteca, Cidade do México": {stadium:"Estádio Azteca",        city:"Cidade do México", country:"México"},
+  "Cidade do México":          {stadium:"Estádio Azteca",        city:"Cidade do México", country:"México"},
+  "Guadalajara":               {stadium:"Estádio Akron",         city:"Guadalajara",      country:"México"},
+  "Monterrey":                 {stadium:"Estádio BBVA",          city:"Monterrey",        country:"México"},
+  "Toronto":                   {stadium:"BMO Field",             city:"Toronto",          country:"Canadá"},
+  "Vancouver":                 {stadium:"BC Place",              city:"Vancouver",        country:"Canadá"},
+  "Los Angeles":               {stadium:"SoFi Stadium",          city:"Los Angeles",      country:"EUA"},
+  "São Francisco":             {stadium:"Levi's Stadium",        city:"São Francisco",    country:"EUA"},
+  "MetLife, Nova York":        {stadium:"MetLife Stadium",       city:"Nova York",        country:"EUA"},
+  "Nova York":                 {stadium:"MetLife Stadium",       city:"Nova York",        country:"EUA"},
+  "Boston":                    {stadium:"Gillette Stadium",      city:"Boston",           country:"EUA"},
+  "Houston":                   {stadium:"NRG Stadium",           city:"Houston",          country:"EUA"},
+  "Dallas":                    {stadium:"AT&T Stadium",          city:"Dallas",           country:"EUA"},
+  "Filadélfia":                {stadium:"Lincoln Financial Field",city:"Filadélfia",      country:"EUA"},
+  "Atlanta":                   {stadium:"Mercedes-Benz Stadium", city:"Atlanta",          country:"EUA"},
+  "Seattle":                   {stadium:"Lumen Field",           city:"Seattle",          country:"EUA"},
+  "Miami":                     {stadium:"Hard Rock Stadium",     city:"Miami",            country:"EUA"},
+  "Kansas City":               {stadium:"Arrowhead Stadium",     city:"Kansas City",      country:"EUA"},
+};
+
 const ROUNDS_DEFAULT = [
   { id:"r1", name:"Rodada 1 — Grupos", phase:"grupos", active:false, locked:false, games:[
     {id:"g1", home:"México", away:"África do Sul", date:"11/06", time:"16h", stadium:"Azteca, Cidade do México"},
@@ -308,10 +334,12 @@ function ScoreInput({value,onChange,disabled}) {
 function GameCard({game,pick,onPickChange,result,phase,disabled}) {
   const mult=PHASE_MULT[phase]||1;
   const s=(result?.home!==undefined&&result?.home!==""&&pick)?scoreMatch(pick,result):null;
+  const venue=VENUES[game.stadium];
+  const venueStr=venue?`${venue.stadium} · ${venue.city}, ${venue.country}`:game.stadium;
   return (
     <div style={{background:"#161b22",borderRadius:"14px",padding:"14px 12px",border:s?`2px solid ${s.color}40`:"2px solid #21262d",marginBottom:"10px",position:"relative"}}>
       {mult>1&&<div style={{position:"absolute",top:"10px",right:"10px",background:mult===3?"#ffe066":"#ff9800",color:"#0d1117",borderRadius:"6px",padding:"3px 10px",fontSize:"14px",fontWeight:"700"}}>×{mult}</div>}
-      <p style={{color:"#8b949e",fontSize:"15px",margin:"0 0 14px"}}>{game.date} · {game.time} · {game.stadium}</p>
+      <p style={{color:"#8b949e",fontSize:"15px",margin:"0 0 14px"}}>{game.date} · {game.time} · {venueStr}</p>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:"6px"}}>
         <div style={{flex:1,textAlign:"center"}}>
           <div style={{fontSize:"36px",marginBottom:"6px"}}>{fl(game.home)}</div>
@@ -447,16 +475,36 @@ function UserView({participant,rounds,picks,onPicksChange,results,longBets,onLon
         {tab==="picks"&&<div style={{marginTop:"14px",paddingBottom:"85px"}}>
           {activeRounds.length===0
             ? <div style={{textAlign:"center",padding:"60px 20px",color:"#8b949e"}}><div style={{fontSize:"44px",marginBottom:"12px"}}>⏳</div><p>Nenhuma rodada aberta.<br/>Aguarda o admin liberar!</p></div>
-            : activeRounds.map(round=>(
-              <div key={round.id}>
-                <div style={{display:"flex",alignItems:"center",gap:"8px",margin:"22px 0 12px"}}>
-                  <h2 style={{color:"#ffe066",fontFamily:"'Bebas Neue',cursive",fontSize:"22px",letterSpacing:"1px",margin:0}}>{round.name}</h2>
-                  <span style={{background:"#21262d",color:"#8b949e",borderRadius:"5px",padding:"3px 8px",fontSize:"14px"}}>×{PHASE_MULT[round.phase]}</span>
-                  {round.locked&&<span style={{background:"#b91c1c22",color:"#ef5350",borderRadius:"5px",padding:"3px 8px",fontSize:"14px"}}>🔒</span>}
-                </div>
-                {round.games.map(game=><GameCard key={game.id} game={game} phase={round.phase} pick={picks?.[participant.id]?.[round.id]?.[game.id]} result={results?.[round.id]?.[game.id]} disabled={round.locked} onPickChange={val=>onPicksChange(p=>({...p,[participant.id]:{...(p[participant.id]||{}),[round.id]:{...(p[participant.id]?.[round.id]||{}),[game.id]:val}}}))}/>)}
-              </div>
-            ))
+            : activeRounds.map(round=>{
+              const parseDate=d=>{const[day,mon]=d.split("/").map(Number);return mon*100+day;};
+              const renderCard=game=><GameCard key={game.id} game={game} phase={round.phase} pick={picks?.[participant.id]?.[round.id]?.[game.id]} result={results?.[round.id]?.[game.id]} disabled={round.locked} onPickChange={val=>onPicksChange(p=>({...p,[participant.id]:{...(p[participant.id]||{}),[round.id]:{...(p[participant.id]?.[round.id]||{}),[game.id]:val}}}})}/>;
+              const roundHeader=<div style={{display:"flex",alignItems:"center",gap:"8px",margin:"22px 0 12px"}}>
+                <h2 style={{color:"#ffe066",fontFamily:"'Bebas Neue',cursive",fontSize:"22px",letterSpacing:"1px",margin:0}}>{round.name}</h2>
+                <span style={{background:"#21262d",color:"#8b949e",borderRadius:"5px",padding:"3px 8px",fontSize:"14px"}}>×{PHASE_MULT[round.phase]}</span>
+                {round.locked&&<span style={{background:"#b91c1c22",color:"#ef5350",borderRadius:"5px",padding:"3px 8px",fontSize:"14px"}}>🔒</span>}
+              </div>;
+              if(round.phase==="grupos"){
+                const byGroup={};
+                round.games.forEach(g=>{const gr=TEAM_TO_GROUP[g.home]||TEAM_TO_GROUP[g.away]||"Outros";(byGroup[gr]=byGroup[gr]||[]).push(g);});
+                const sortedGroups=Object.keys(byGroup).sort();
+                sortedGroups.forEach(gr=>byGroup[gr].sort((a,b)=>parseDate(a.date)-parseDate(b.date)));
+                return <div key={round.id}>
+                  {roundHeader}
+                  {sortedGroups.map(gr=>(
+                    <div key={gr}>
+                      <div style={{display:"flex",alignItems:"center",gap:"8px",margin:"16px 0 8px"}}>
+                        <span style={{color:"#c9d1d9",fontFamily:"'Bebas Neue',cursive",fontSize:"17px",letterSpacing:"1px",background:"#21262d",borderRadius:"6px",padding:"3px 10px"}}>{gr}</span>
+                      </div>
+                      {byGroup[gr].map(renderCard)}
+                    </div>
+                  ))}
+                </div>;
+              }
+              return <div key={round.id}>
+                {roundHeader}
+                {round.games.slice().sort((a,b)=>parseDate(a.date)-parseDate(b.date)).map(renderCard)}
+              </div>;
+            })
           }
         </div>}
 
